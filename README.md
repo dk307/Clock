@@ -1,2 +1,1 @@
-# TempHumSensor
-Temperature Humdity Sensor with Homekit
+# Clock with esp8266
