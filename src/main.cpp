@@ -33,4 +33,5 @@ void loop(void)
 	hardware::instance.loop();
 	timentp::instance.loop();
 	operations::instance.loop();
+	delay(2);
 }

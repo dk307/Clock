@@ -208,7 +208,8 @@ void WifiManager::loop()
         dnsServer->processNextRequest();
 
         // only wait for 5 min in portal and then reboot
-        if (captivePortalStart - millis() > 5 * 60 * 1000) { // 5mins
+        if ((millis() - captivePortalStart) > 5 * 60 * 1000)
+        { // 5mins
             operations::instance.reboot();
         }
     }

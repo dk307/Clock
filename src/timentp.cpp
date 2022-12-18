@@ -120,8 +120,7 @@ std::optional<timentp::DisplayTime> timentp::getDisplayTime() const
         }
 
         const auto utc = time(NULL);
-        TimeChangeRule *tcr;
-        const time_t t = tz->toLocal(utc, &tcr);
+        const time_t t = tz->toLocal(utc);
         return DisplayTime{hour(t), minute(t)};
     }
     return std::nullopt;
