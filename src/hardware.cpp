@@ -7,11 +7,10 @@
 
 hardware hardware::instance;
 
-
 void hardware::preBegin()
 {
     Wire.begin(SDAWire, SCLWire);
- 
+
     matrix.begin();
     matrix.setIntensity(currentIntensity);
     matrix.displayClear();
@@ -19,15 +18,15 @@ void hardware::preBegin()
 
     displayLine(F("Start"), false);
 
-    if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+    if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE))
+    {
         LOG_ERROR(F("Failed to Init Light Sensor"));
     }
-
 }
 
 void hardware::begin()
 {
-    const auto ftn = [this] 
+    const auto ftn = [this]
     {
         LOG_DEBUG(F("Display refresh needed"));
         refreshDisplay = true;
@@ -44,56 +43,56 @@ void hardware::loop()
     updateDisplay();
     if (currentScroll)
     {
-        if (matrix.displayAnimate()) 
+        if (matrix.displayAnimate())
         {
             matrix.displayReset();
         }
     }
-    
-    if (lightMeter.measurementReady(true)) {
-        float lux = lightMeter.readLightLevel();
 
-        if (lux != lastLux) {
-            lastLux = lux;
-            LOG_DEBUG(F("New Light Level: ") << lux);
+    if (lightMeter.measurementReady(true))
+    {
+        lastLux = lightMeter.readLightLevel();
+        lightSensorHistory.add_value(round(lastLux));
 
-            const uint8_t intensity = luxToIntensity(round(lux));
+        const auto average = lightSensorHistory.get_average();
 
-            if (intensity != currentIntensity) {
-                LOG_INFO(F("New Intensity Level: ") << intensity);
-                matrix.setIntensity(intensity);
-                currentIntensity = intensity;
-            }
-        }      
+        const uint8_t intensity = luxToIntensity(average.value_or(100));
+
+        if (intensity != currentIntensity)
+        {
+            LOG_INFO(F("New Intensity Level: ") << intensity);
+            matrix.setIntensity(intensity);
+            currentIntensity = intensity;
+        }
     }
 }
 
-void hardware::displayLine(const String& line, bool scroll)
+void hardware::displayLine(const String &line, bool scroll)
 {
     if ((currentDisplayText != line) || (scroll != currentScroll))
-    {      
+    {
         currentDisplayText = line;
         currentScroll = scroll;
         if (scroll)
         {
             matrix.displayText(currentDisplayText.c_str(), PA_LEFT, 200, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
         }
-        else 
+        else
         {
             matrix.setTextAlignment(PA_CENTER);
-            matrix.displayText(currentDisplayText.c_str(), PA_CENTER, 75, 0, PA_PRINT, PA_DISSOLVE); 
-            while (matrix.displayAnimate());
-           
+            matrix.displayText(currentDisplayText.c_str(), PA_CENTER, 75, 0, PA_PRINT, PA_DISSOLVE);
+            while (matrix.displayAnimate())
+                ;
         }
         LOG_INFO(line);
     }
-} 
+}
 
-void hardware::displayLines(const String& line1, const String& line2)
+void hardware::displayLines(const String &line1, const String &line2)
 {
-    const String data =  line1 + " " + line2;
+    const String data = line1 + " " + line2;
     displayLine(data, true);
-} 
+}
 
 void hardware::updateDisplay()
 {
@@ -102,15 +101,15 @@ void hardware::updateDisplay()
     {
         if (WifiManager::instance.isCaptivePortal())
         {
-            displayLines(F("AP Mode"),  WifiManager::instance.getAPForCaptiveMode());
+            displayLines(F("AP Mode"), WifiManager::instance.getAPForCaptiveMode());
         }
         else
         {
             const auto currentTime = timentp::instance.getDisplayTime();
 
-            if (currentTime.has_value()) 
+            if (currentTime.has_value())
             {
-                if (*currentTime != lastDisplayTime) 
+                if (*currentTime != lastDisplayTime)
                 {
                     char str[12];
                     auto hour = std::get<0>(*currentTime);
@@ -118,7 +117,7 @@ void hardware::updateDisplay()
                     hour = hour == 0 ? 12 : hour;
                     sprintf(str, "%0d:%02d", hour, std::get<1>(*currentTime));
                     displayLine(str, false);
-                    LOG_INFO(F("New Display:") << str);  
+                    LOG_INFO(F("New Display:") << str);
                     lastDisplayTime = *currentTime;
                 }
             }
@@ -135,40 +134,68 @@ void hardware::updateDisplay()
 uint8_t hardware::luxToIntensity(uint32_t intensity)
 {
     // https://learn.microsoft.com/en-us/windows/win32/sensorsapi/understanding-and-interpreting-lux-values
-    if (intensity <= 10) {
+    if (intensity <= 10)
+    {
         return 0;
-    } else if (intensity <= 10) {
+    }
+    else if (intensity <= 20)
+    {
         return 1;
-    } else if (intensity <= 30) {
+    }
+    else if (intensity <= 30)
+    {
         return 2;
-    } else if (intensity <= 50) {
+    }
+    else if (intensity <= 50)
+    {
         return 3;
-    } else if (intensity <= 100) {
+    }
+    else if (intensity <= 100)
+    {
         return 4;
-    } else if (intensity <= 200) {
+    }
+    else if (intensity <= 200)
+    {
         return 5;
-    } else if (intensity <= 300) {
+    }
+    else if (intensity <= 300)
+    {
         return 6;
-    } else if (intensity <= 400) {
+    }
+    else if (intensity <= 400)
+    {
         return 7;
-    } else if (intensity <= 500) {
+    }
+    else if (intensity <= 500)
+    {
         return 8;
-    } else if (intensity <= 600) {
+    }
+    else if (intensity <= 600)
+    {
         return 9;
-    } else if (intensity <= 700) {
+    }
+    else if (intensity <= 700)
+    {
         return 10;
-    } else if (intensity <= 800) {
+    }
+    else if (intensity <= 800)
+    {
         return 11;
-    } else if (intensity <= 900) {
+    }
+    else if (intensity <= 900)
+    {
         return 12;
-    } else if (intensity <= 1000) {
+    }
+    else if (intensity <= 1000)
+    {
         return 13;
-    } else if (intensity <= 1500) {
+    }
+    else if (intensity <= 1500)
+    {
         return 14;
-    } else {
+    }
+    else
+    {
         return 15;
     }
-
-
-
 }

@@ -6,6 +6,7 @@
 #include <BH1750.h>
 #include "changeCallback.h"
 #include "timentp.h"
+#include "sensor_history.h"
 
 class hardware
 {
@@ -25,7 +26,8 @@ private:
     const int SDAWire = 4;
     const int SCLWire = 5;
     BH1750 lightMeter;
-    float lastLux = NAN;
+    float lastLux{NAN};
+    sensor_history lightSensorHistory;
 
     MD_Parola matrix{ MD_MAX72XX::FC16_HW, 13, 14, 12, 4 };
     uint8_t currentIntensity = 1;
