@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <DNSServer.h>
 #include <memory>
+#include <ESP8266WiFi.h>
 
 #include "changeCallback.h"
 
@@ -38,10 +39,16 @@ private:
     String rfcName;
     const unsigned long timeout = 60000;
 
+    uint8_t reconnectRetries{0};
+    uint32_t reconnectLastRetry{0};
+    bool checkConnection{false};
+
     void startCaptivePortal();
     void stopCaptivePortal();
     void connectNewWifi(const String &newSSID, const String &newPass);
     int8_t waitForConnectResult(unsigned long timeoutLength);
+    bool connectSavedWifi();
+    void onDisconnect(const WiFiEventStationModeDisconnected&);
 
     static String getRFC952Hostname(const String &name);
 };

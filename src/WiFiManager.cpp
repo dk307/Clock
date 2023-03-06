@@ -1,5 +1,3 @@
-#include <ESP8266WiFi.h>
-
 #include "WiFiManager.h"
 #include "configManager.h"
 #include "logging.h"
@@ -21,31 +19,21 @@ void WifiManager::begin()
 
     LOG_INFO(F("RFC name is ") << rfcName);
 
-    WiFi.mode(WIFI_STA);
-    WiFi.persistent(true);
+    WiFi.persistent(false);
+    WiFi.onStationModeDisconnected(std::bind(&WifiManager::onDisconnect, this, std::placeholders::_1));
+    WiFi.setAutoReconnect(true);
 
-    if (!WiFi.SSID().isEmpty())
-    {
-        // trying to fix connection in progress hanging
-        ETS_UART_INTR_DISABLE();
-        wifi_station_disconnect();
-        ETS_UART_INTR_ENABLE();
-        WiFi.begin();
-    }
-
-    if (waitForConnectResult(timeout) == WL_CONNECTED)
-    {
-        // connected
-        LOG_INFO(F("Connected to stored WiFi details with IP: ") << WiFi.localIP());
-        WiFi.setHostname(rfcName.c_str());
-        WiFi.setAutoReconnect(true);
-        WiFi.persistent(true);
-    }
-    else
+    if (!connectSavedWifi())
     {
         // captive portal
         startCaptivePortal();
     }
+}
+
+void WifiManager::onDisconnect(const WiFiEventStationModeDisconnected& info)
+{
+    LOG_INFO(F("WiFi STA disconnected with reason:")<< info.reason);
+    checkConnection = true;
 }
 
 // Upgraded default waitForConnectResult function to incorporate WL_NO_SSID_AVAIL, fixes issue #122
@@ -199,9 +187,43 @@ int8_t WifiManager::RSSI()
     return WiFi.RSSI();
 }
 
+bool WifiManager::connectSavedWifi()
+{
+    LOG_INFO(F("RFC name is ") << rfcName);
+
+    WiFi.mode(WIFI_STA);
+    WiFi.persistent(true);
+
+    if (!WiFi.SSID().isEmpty())
+    {
+        // trying to fix connection in progress hanging
+        ETS_UART_INTR_DISABLE();
+        wifi_station_disconnect();
+        ETS_UART_INTR_ENABLE();
+        WiFi.begin();
+    }
+
+    if (waitForConnectResult(timeout) == WL_CONNECTED)
+    {
+        // connected
+        LOG_INFO(F("Connected to stored WiFi details with IP: ") << WiFi.localIP());
+        WiFi.setHostname(rfcName.c_str());
+        WiFi.setAutoReconnect(true);
+        WiFi.persistent(true);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 // captive portal loop
 void WifiManager::loop()
 {
+    const uint8_t maxConnectionRetries = 10;
+    const uint32_t connectionRetryInterval = 30 * 1000;
+
     if (inCaptivePortal)
     {
         // captive portal loop
@@ -218,6 +240,46 @@ void WifiManager::loop()
     {
         connectNewWifi(ssid, pass);
         reconnect = false;
+    }
+
+    const auto now = millis();
+    if (!inCaptivePortal)
+    {
+        // check every connection_retry_interval
+        if ((now - reconnectLastRetry >= connectionRetryInterval) || checkConnection)
+        {
+            checkConnection = false;
+            if (!WiFi.isConnected())
+            {
+                if (reconnectRetries <= maxConnectionRetries)
+                {
+                    LOG_INFO(F("Disconnected from wifi, connection retry no") << reconnectRetries);
+                    if (!connectSavedWifi())
+                    {
+                        LOG_INFO(F("Connection to saved wifi failed for retry no:") << reconnectRetries);
+                    }
+                    else
+                    {
+                        LOG_INFO(F("Connection to saved wifi succeeded for retry no:") << reconnectRetries);
+                    }
+                    reconnectRetries++;
+                    reconnectLastRetry = millis(); // get the time again to account for time taken to connect to wifi
+                }
+                else
+                {
+                    startCaptivePortal();
+                }
+            }
+            else
+            {
+                // valid connection for connection_retry_interval
+                if ((now - reconnectLastRetry >= connectionRetryInterval) && reconnectRetries)
+                {
+                    LOG_INFO(F("Wifi connection is stable now"));
+                    reconnectRetries = 0;
+                }
+            }
+        }
     }
 }
 
