@@ -242,10 +242,10 @@ void WifiManager::loop()
         reconnect = false;
     }
 
-    const auto now = millis();
     if (!inCaptivePortal)
     {
         // check every connection_retry_interval
+        const auto now = millis();
         if ((now - reconnectLastRetry >= connectionRetryInterval) || checkConnection)
         {
             checkConnection = false;
